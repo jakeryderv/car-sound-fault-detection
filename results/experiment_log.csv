@@ -1,0 +1,6 @@
+run,change,reason,fault_recall,knock_recall,misfire_recall,fault_detected,healthy_false_alarm,macro_f1,accuracy,real_knock_recall,synthetic_knock_recall,tradeoff
+Benchmark,Always predict majority class,Floor any model must beat,0.5,1.0,0.0,1.0,1.0,0.239,0.558,1.0,1.0,No model; flags every engine as faulty
+Baseline,Frozen AST embeddings + linear head (lr 1e-3),Establish reference,0.815,0.756,0.875,0.833,0.192,0.775,0.786,0.837,0.674,2.3k trainable params; head trains in 1s; 679 ms/clip on CPU
+Exp 1,Unfreeze top 2 AST layers (fine-tune),Adapt generic AudioSet features to engine faults,0.805,0.86,0.75,0.873,0.212,0.804,0.825,0.907,0.814,14.2M trainable params; trains in 2.3 min; ships a 345 MB model instead of a 9 KB head; same inference cost
+Exp 2,Inverse-frequency class weights,Misfire is under-represented (76 of 721 train clips),0.86,0.721,1.0,0.833,0.192,0.765,0.779,0.814,0.628,No extra cost; shifts errors between classes
+Exp 3,Drop synthetic knocks from training,Test whether synthetic data teaches the real knock sound,0.775,0.674,0.875,0.765,0.154,0.743,0.753,0.93,0.419,Less training data (521 vs 721 clips); no extra cost
