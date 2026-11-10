@@ -7,6 +7,10 @@ Industry AI Challenge project (Team 2): AST (Audio Spectrogram Transformer) adap
 
 - `notebooks/engine_fault_classification.ipynb` — executed notebook: data and leakage checks, benchmark,
   baseline, three controlled experiments, source-shortcut analyses
+- `notebooks/recording_fingerprint.ipynb` — executed: what the recording-source fingerprint is made of, and whether
+  projecting clips onto a common spectrum removes it (it does not, on this dataset)
+- `notebooks/device_shortcuts.ipynb` — **not yet run**: simulated devices, planted-shortcut test, and a check of
+  KweriMoto clips against AudioSet's training lists
 - `results/` — experiment log, analysis tables and figures written by the notebook
 - `report/report.qmd` → `report/report.pdf` — draft project report
 
