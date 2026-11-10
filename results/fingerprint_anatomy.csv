@@ -1,0 +1,7 @@
+,source probe | healthy,source probe | knock,fault recall,false alarm
+clip length (1 number),0.438,0.756,0.494,1.0
+"top band only, >= 7 kHz (6 bands)",0.617,0.523,0.448,0.692
+below 7 kHz only (122 bands),0.962,0.767,0.765,0.365
+average spectrum (128 bands),0.962,0.767,0.77,0.385
+average spectrum + per-band spread,0.988,0.814,0.77,0.288
+AST embedding (768 numbers),1.0,0.907,0.77,0.192
