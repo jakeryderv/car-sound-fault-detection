@@ -31,8 +31,7 @@ def pct(x):  # round half up, so 0.815 -> 0.82 as in the prose
     return str(Decimal(str(x)).quantize(Decimal("0.01"), ROUND_HALF_UP))
 ```
 
-> **Draft status.** Numbers come from `notebooks/engine_fault_classification.ipynb` (validation split).
-> Items marked **TODO** are still open: the final test-set evaluation, a multi-seed check of Experiment 2, and
+> **Draft status.** Numbers come from `notebooks/engine_fault_classification.ipynb`. Still open (**TODO**):
 > listening to the misclassified clips. Every section should be rewritten in the team's own words.
 
 # Business problem
@@ -50,7 +49,8 @@ often only heard. Without AI, the alternative is more frequent scheduled inspect
 
 **What would make AI useful.** A 10-second phone recording, taken during a routine pre-trip check, that flags
 vehicles likely to need an engine inspection. It needs no new hardware, and its job is to *prioritise* inspections,
-not replace the mechanic.
+not replace the mechanic. There is commercial precedent: a used-car auction company reported about 21 % fewer
+engine-related buyer disputes while a sound-based fault detector, reviewed by humans, was switched on [8].
 
 **Cost of wrong predictions.** A *missed fault* (false negative) lets a damaged engine keep running: possible engine
 or catalytic-converter repairs costing thousands, plus downtime. A *false alarm* (false positive) costs one
@@ -118,7 +118,9 @@ surrounding engine noise. *Happened:* knock recall improved (0.76 → 0.86), but
 **Experiment 2 — class-weighted loss.** *Expected:* weighting the rare misfire class (76 training clips) more
 heavily would raise misfire recall. *Happened:* misfire recall reached 16/16 and fault recall 0.86 with no change in
 false alarms — the only configuration meeting both criteria. *Learned:* the weights moved some errors from misfire to
-knock; the gain is two clips, so it needs confirming (**TODO:** repeat over 5 random seeds).
+knock. *Stability:* over 10 random seeds, Experiment 2 beat the baseline every time (mean fault recall
+0.85 ± 0.02 vs 0.77 ± 0.03, both with ≈ 0.20 false alarms), so the gain is real; but it met *both* criteria in only
+2 of 10 seeds, and the baseline run in Table 1 was a favourable seed.
 
 **Experiment 3 — no synthetic knocks in training.** *Expected:* if synthetic knocks teach the real knock sound,
 removing them should hurt real-knock recall. *Happened:* real-knock recall *rose* (0.84 → 0.93) while
@@ -143,8 +145,13 @@ constraint; the classifier adds negligible cost.
 Validation confusion matrices (rows: true class; columns: predicted).
 :::
 
-> **TODO — final test evaluation.** Choose the final configuration, set `RUN_FINAL_EVAL = True` in the notebook,
-> and report test metrics and `real_test` knock recall here. Run once.
+**Final test (run once).** We selected Experiment 2 on validation (higher mean fault recall across seeds). On the
+154 held-out test clips it reached **fault recall 0.91** with a **0.11 false-alarm rate**: knock recall 0.81
+(real 0.90, synthetic 0.72) and misfire 16/16. On `real_test` it caught 33 of 38 real knocks (0.87). Both business
+criteria are met on test, but the baseline scored almost the same there (0.90 / 0.11), and the test split shares the
+dataset's source structure, so these numbers do not show how the model would do on a fleet's own recordings. For
+scale, a production system trained on ~45,000 vehicles recorded with one fixed device reports an audio-only ROC AUC
+of 0.80 for knock-type noise [8]; our higher figures from a few hundred clips should be read as optimistic.
 
 ## Where does it fail?
 
@@ -188,6 +195,9 @@ print("\n: ROC AUC when the recording source is held fixed (0.5 = chance). {#tbl
 - **Source-adversarial training:** we trained the representation to hide the source within each class [6]. The
   adversary was partly fooled, but a fresh probe still identified healthy-clip sources **perfectly** at every
   setting (@fig-adv), a known weakness of adversarial removal [7]. The source fingerprint cannot be trained away.
+- **Transfer across sources:** a knock detector trained only on AudioSet knocks vs Hugging Face healthy clips scores
+  AUC 0.42 on Revix knocks vs Revix healthy clips — no better than chance — and equalising every clip's average
+  spectrum did not change this (`recording_fingerprint.ipynb`).
 
 ![Source-adversarial training (5 seeds per setting). Left: source still identifiable by a fresh probe; middle: within-source fault AUC; right: overall validation metrics.](../results/figures/adversarial.png){#fig-adv width=100%}
 
@@ -207,18 +217,19 @@ print("\n: ROC AUC when the recording source is held fixed (0.5 = chance). {#tbl
 
 # Recommendation: continue development (not yet a pilot)
 
-The approach is promising: a frozen pre-trained model with a tiny classifier meets the business criterion on
-validation (Experiment 2), runs in under a second on a laptop CPU, and still separates faults from healthy engines
+The approach is promising: a frozen pre-trained model with a tiny classifier meets the business criterion on the
+test split (Experiment 2), runs in under a second on a laptop CPU, and still separates faults from healthy engines
 when the recording source is held fixed. **We do not recommend a pilot yet**, because:
 
 - We cannot rule out that much of the performance comes from recognising the recording source; even adversarial
   training could not remove it.
 - All misfire examples come from one source, and no test set measures false alarms on real knocks.
-- Validation differences between configurations are 1–2 clips, so the choice of configuration is not yet stable.
+- Results are close to the criteria rather than clear of them: only 2 of 10 seeds met both on validation.
 
-**Next step (≈ 4–6 weeks):** collect the fleet's own recordings — same phone and position for every vehicle,
-healthy and faulty — labelled by each vehicle's OBD-II misfire counters and by mechanics, including recordings before
-and after repairs. Retrain the frozen model on this data and run a **shadow pilot**: the tool flags vehicles, but
+**Next step (≈ 4–6 weeks):** collect the fleet's own recordings — same phone, position and routine for every
+vehicle, healthy and faulty, as in [8] — labelled by each vehicle's OBD-II misfire counters and by mechanics,
+including recordings before and after repairs. Record the phone's accelerometer too: in [8] vibration detected
+rough-running engines better than audio. Retrain the frozen model on this data and run a **shadow pilot**: the tool flags vehicles, but
 inspections proceed as usual, so its hit rate and false-alarm rate can be measured at no risk. Proceed to a limited
 pilot if it catches ≥ 85 % of confirmed faults with ≤ 20 % false alarms on the fleet's own vehicles.
 
@@ -232,3 +243,5 @@ pilot if it catches ≥ 85 % of confirmed faults with ≤ 20 % false alarms on t
    Augmentation." *ICASSP*, 2023.
 6. Y. Ganin et al. "Domain-Adversarial Training of Neural Networks." *JMLR*, 2016.
 7. Y. Elazar, Y. Goldberg. "Adversarial Removal of Demographic Attributes from Text Data." *EMNLP*, 2018.
+8. D. Fedorishin et al. "Large-Scale Acoustic Automobile Fault Detection: Diagnosing Engines Through Sound."
+   *KDD*, 2022.

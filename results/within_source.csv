@@ -1,6 +1,6 @@
 ,AUC knock|Revix,AUC misfire|HF
 Baseline,0.865,0.859
-Exp 1 (fine-tune),0.905,0.854
+Exp 1 (fine-tune),0.906,0.854
 Exp 2 (class weights),0.873,0.891
 Exp 3 (no synthetic),0.701,0.781
 Probe trained within source,0.876,0.938
