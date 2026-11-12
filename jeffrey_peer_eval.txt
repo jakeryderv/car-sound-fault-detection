@@ -1,0 +1,5 @@
+| Criterion | Self Jeffrey Gregory | Teammate Jake Van Slyke |
+|---|---|---|
+| Active and reliable contribution | 4/4. I revised the notebook, checked the rerun against the previous results, and prepared the submission branch. | 4/4. Jake built the initial experiment and ran the baseline and controlled comparisons that the final project uses. |
+| Effective communication | 4/4. I organized the final notebook, report, and slides so the results and the reasoning behind them were easy to follow. | 4/4. Jake documented the experiment setup and results clearly enough for me to revise the notebook and check that it still reproduced his work. |
+| Initiative and leadership | 4/4. I took responsibility for simplifying the project and getting the final materials ready for submission. | 4/4. Jake took the lead on the original experiment design and investigated whether recording source could explain part of the model’s performance. |
