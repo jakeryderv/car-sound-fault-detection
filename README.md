@@ -24,7 +24,7 @@ RTX 50-series cards). The notebook downloads the dataset (~280 MB) into `data/` 
 ```bash
 uv sync
 uv run jupyter lab notebooks/engine_fault_classification.ipynb      # or run headless:
-(cd notebooks && uv run jupyter nbconvert --to notebook --execute --inplace engine_fault_classification.ipynb)
+uv run python run_notebook.py
 uv run quarto render report/report.qmd                                # needs Quarto >= 1.4
 ```
 
