@@ -1,0 +1,8 @@
+Individual Contribution Statement
+Jake designed the initial experiment and built the project on the main branch. I revised his notebook with AI assistance and prepared refactor/lean-notebook, the branch we are submitting. I also prepared the findings slides and updated the report to match the verified run.
+
+One technical decision I made was to keep the experiment design fixed during the revision. I consolidated repeated training, scoring, and plotting code while keeping the data splits and model-selection rule in place. The rerun reproduced the prior metrics across all eight result tables.
+
+I learned from Jake’s design why a simple benchmark and a separate validation split matter. The majority-class benchmark caught every knock, but it also flagged every healthy clip. That made it clear why recall and false alarms had to be considered together.
+
+Our challenge was making the project easy to review without losing the evidence behind the recommendation. I kept the results and plots in the executed notebook and removed duplicate exports and side notebooks from the submission branch. If we continued, I would test the class-weighted model on independently recorded fleet vehicles to see whether its recall and false-alarm rate hold up.
