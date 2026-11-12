@@ -16,6 +16,8 @@ Industry AI Challenge project (Team 2): AST (Audio Spectrogram Transformer) adap
 - `results/` — experiment log, analysis tables and figures written by the notebook
 - `report/report.qmd` → `report/report.pdf` — draft project report
 
+- [Findings presentation (PDF)](presentation/engine-fault-findings.pdf) and [editable PowerPoint with speaker notes](presentation/engine-fault-findings.pptx)
+
 ## Reproduce
 
 Requires [uv](https://docs.astral.sh/uv/) and an NVIDIA GPU (PyTorch is pinned to the CUDA 12.8 build, needed for
