@@ -1,0 +1,15 @@
+Team Charter
+Industry AI Challenge · Team 2
+Jeffrey Gregory and Jake Van Slyke
+
+Meetings. We will meet on Discord every other evening during the November 2–11 project window, as schedules allow. Before the class presentation, we will rehearse together and make time for questions about each other’s work.
+
+Shared work. The GitHub repository will hold the notebook, results, and submission files. We will use Discord for coordination and shared cloud storage for working copies of the report and slides.
+
+Shared understanding. During meetings, we will walk each other through the business problem, data splits, model, experiments, and final recommendation. Before submitting, each of us will practice explaining what changed in every experiment, what the results showed, and why we recommend continued development.
+
+Technical decisions. We will use the assignment criteria and validation results to make decisions together. If we disagree, we will identify what evidence would settle the question and run a small check when feasible. We will ask the instructor for guidance if we still cannot agree.
+
+Blockers. If either of us gets blocked or falls behind, we will raise it on Discord, adjust responsibilities, and prioritize the required work. We will cut optional analyses first so we can protect both the quality of the project and the deadline.
+
+Jeffrey Gregory Jake Van Slyke
