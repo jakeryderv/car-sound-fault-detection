@@ -1,4 +1,0 @@
-project:
-  type: default
-  render:
-    - report/report.qmd

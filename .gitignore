@@ -1,11 +1,5 @@
 .venv/
 data/
+results/
 __pycache__/
 .ipynb_checkpoints/
-results/cache/
-
-/.quarto/
-**/*.quarto_ipynb
-.quarto/
-report/*_files/
-report/*.typ

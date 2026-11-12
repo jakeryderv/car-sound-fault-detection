@@ -1,6 +1,0 @@
-run,change,reason,fault_recall,knock_recall,misfire_recall,fault_detected,healthy_false_alarm,macro_f1,accuracy,real_knock_recall,synthetic_knock_recall,tradeoff
-Benchmark,Always predict majority class,Establish a simple reference,0.5,1.0,0.0,1.0,1.0,0.239,0.558,1.0,1.0,Flags every engine as faulty
-Baseline,Frozen AST embeddings + linear head (lr 1e-3),Establish reference,0.815,0.756,0.875,0.833,0.192,0.775,0.786,0.837,0.674,2.3k trainable parameters; head trains in 2s; 247 ms/clip on CPU
-Exp 1,Unfreeze top 2 AST layers (fine-tune),Adapt AST to engine faults,0.805,0.86,0.75,0.873,0.212,0.804,0.825,0.907,0.814,14.2M trainable parameters; 3.0 min to train; ships a 345 MB model
-Exp 2,Inverse-frequency class weights,Misfires are under-represented,0.86,0.721,1.0,0.833,0.192,0.765,0.779,0.814,0.628,Same inference cost; shifts errors between classes
-Exp 3,Drop synthetic knocks from training,Test whether overlays help detect real knocks,0.775,0.674,0.875,0.765,0.154,0.743,0.753,0.93,0.419,Trains on 521 of 721 clips
