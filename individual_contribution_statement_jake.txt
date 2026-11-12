@@ -1,0 +1,8 @@
+Individual Contribution Statement
+I designed the initial experiment and built the original project on the main branch. I set up the comparison between a majority-class benchmark, a frozen Audio Spectrogram Transformer baseline, and three experiments that tested partial fine-tuning, class weighting, and removing synthetic knocks from training. Jeffrey later revised the notebook and prepared the final submission branch.
+
+One technical decision I helped make was to start with a frozen AST and train a small classifier on its features. This gave us a reference model we could train quickly and made it possible to measure what fine-tuning added in performance and training time.
+
+I learned from Jeffrey’s revision how sharing the training and scoring code makes it easier to see exactly what changes between runs. The shorter notebook also made it easier to follow the evidence from validation to the final recommendation.
+
+A challenge was that the dataset ties some faults closely to where the recordings came from. I built that limitation into the investigation by including checks for recording-source information alongside the fault results. If we continued, I would collect healthy engines and confirmed faults under the same recording conditions, then hold out entire vehicles for the final evaluation.
