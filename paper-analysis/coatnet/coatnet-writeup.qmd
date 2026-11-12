@@ -1,0 +1,76 @@
+---
+format:
+  pdf:
+    documentclass: article
+    pdf-engine: xelatex
+    papersize: letter
+    fontsize: 12pt
+    mainfont: "Times New Roman"
+    geometry:
+      - margin=1in
+      - headheight=15pt
+      - headsep=0.35in
+    colorlinks: false
+    toc: false
+    number-sections: false
+    indent: true
+    include-in-header:
+      text: |
+        \usepackage{setspace}
+        \usepackage{ragged2e}
+        \usepackage{indentfirst}
+        \usepackage{titlesec}
+        \usepackage{fancyhdr}
+        \doublespacing
+        \setlength{\parindent}{0.5in}
+        \setlength{\parskip}{0pt}
+        \titleformat{\section}{\normalfont\normalsize\bfseries\filcenter}{}{0pt}{}
+        \titleformat{\subsection}{\normalfont\normalsize\bfseries\filcenter}{}{0pt}{}
+        \titlespacing{\section}{0pt}{0pt}{0pt}
+        \titlespacing{\subsection}{0pt}{0pt}{0pt}
+        \pagestyle{fancy}
+        \fancyhf{}
+        \fancyhead[R]{\normalfont\thepage}
+        \renewcommand{\headrulewidth}{0pt}
+        \fancypagestyle{plain}{\fancyhf{}\fancyhead[R]{\normalfont\thepage}\renewcommand{\headrulewidth}{0pt}}
+        \AtBeginDocument{\RaggedRight\setlength{\parindent}{0.5in}}
+        \AtBeginDocument{\hypersetup{pdftitle={CoAtNet: A Critical Analysis},pdfauthor={Jake Van Slyke}}}
+---
+
+<!-- APA 7 formatting with the user's short-assignment adaptation: one page of
+analysis plus a separate references page, without a standalone student title page.
+Project evidence: refactor/lean-notebook at 611f1f4, saved notebook outputs and
+report/report.pdf. No experiments were rerun. Fault recall means the mean of
+knock and misfire class recalls, not the share of faulty recordings flagged.
+Paper metadata verified against the official NeurIPS BibTeX record. -->
+
+\begingroup\centering\textbf{CoAtNet: A Critical Analysis}\par\endgroup
+
+## Central Claim
+
+CoAtNet combines early convolution and later attention to balance generalization with capacity as training data increase (Dai et al., 2021).
+
+## Supporting Evidence
+
+Dai et al. (2021) compare five similarly sized layouts on ImageNet-1K and JFT, then benchmark against NFNet, EfficientNetV2, ViT, and Swin. C-C-T-T transfers better than C-T-T-T (82.39% versus 81.78%; Table 2). CoAtNet matches NFNet's 86.0% ImageNet accuracy without extra data. With ImageNet-21K pretraining, it reaches 88.56%, approximately matching ViT-H/14 trained on JFT-300M (Tables 4–5). However, datasets and training recipes differ, so these benchmarks support the tested systems without isolating architecture alone.
+
+## Unaddressed Limitation
+
+The smallest training regime contains approximately 1.28 million images (Dai et al., 2021). No learning curve tests hundreds or thousands of examples, leaving the title's “all data sizes” claim unsupported at that scale. Unlike the authors' acknowledged omission of detection and segmentation, this concerns sample size within classification. Matched small subsets, equal pretraining access, comparable tuning budgets, and repeated seeds would test whether the hybrid still generalizes when data are scarce.
+
+## Connection to My Work
+
+Our engine-sound project used 721 training clips. Partial AST fine-tuning reduced validation mean fault-class recall from 81.5% to 80.5%, while false alarms rose from 19.2% to 21.2% (Gregory & Van Slyke, 2026). This illustrates the paper's generalization concern, but our audio experiment does not test its convolution–attention explanation. Recording source was identifiable with approximately 95% accuracy, suggesting a separate shortcut-learning risk. I would compare hybrid and Transformer models using matched pretraining and recordings held out by vehicle and collection setup before attributing improvements to architecture.
+
+\newpage
+\begingroup\centering\textbf{References}\par\endgroup
+
+\begingroup
+\setlength{\parindent}{0pt}
+\everypar{\hangindent=0.5in\hangafter=1}
+
+Dai, Z., Liu, H., Le, Q. V., & Tan, M. (2021). CoAtNet: Marrying convolution and attention for all data sizes. In M. Ranzato, A. Beygelzimer, Y. Dauphin, P. S. Liang, & J. Wortman Vaughan (Eds.), *Advances in neural information processing systems* (Vol. 34, pp. 3965–3977). Curran Associates. \url{https://proceedings.neurips.cc/paper/2021/hash/20568692db622456cc42a2e853ca21f8-Abstract.html}
+
+Gregory, J., & Van Slyke, J. (2026). *Listening for engine faults: Can a pre-trained audio model triage fleet vehicles?* [Course report]. GitHub. \url{https://github.com/jakeryderv/car-sound-fault-detection/blob/611f1f4e002469f1d4d301a11925484af3d2d16b/report/report.pdf}
+
+\endgroup

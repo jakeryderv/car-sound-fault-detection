@@ -1,0 +1,490 @@
+---
+title: "CoAtNet"
+subtitle: "Why local patterns and global context belong together"
+author: "Paper analysis · Jake Van Slyke"
+date: ""
+institute: "Dai, Liu, Le, and Tan · NeurIPS 2021"
+format:
+  beamer:
+    pdf-engine: xelatex
+    aspectratio: 169
+    theme: metropolis
+    fontsize: 11pt
+    slide-level: 2
+    navigation: empty
+    colorlinks: true
+    include-in-header:
+      text: |
+        \usepackage{tikz}
+        \usetikzlibrary{arrows.meta,positioning,calc}
+        \definecolor{conv}{HTML}{58A6FF}
+        \definecolor{attn}{HTML}{BC8CFF}
+        \definecolor{good}{HTML}{3FB950}
+        \definecolor{warm}{HTML}{D29922}
+        \tikzset{every node/.style={font=\sffamily\small,text=ink}, flow/.style={-{Stealth[length=2mm]},draw=muted,line width=0.8pt}}
+        \definecolor{canvas}{HTML}{0D1117}
+        \definecolor{surface}{HTML}{161B22}
+        \definecolor{ink}{HTML}{C9D1D9}
+        \definecolor{muted}{HTML}{8B949E}
+        \definecolor{accent}{HTML}{58A6FF}
+        \definecolor{border}{HTML}{30363D}
+        \setbeamercolor{normal text}{fg=ink,bg=canvas}
+        \setbeamercolor{background canvas}{bg=canvas}
+        \setbeamercolor{palette primary}{fg=ink,bg=surface}
+        \setbeamercolor{frametitle}{fg=ink,bg=surface}
+        \setbeamercolor{title}{fg=ink,bg=canvas}
+        \setbeamercolor{subtitle}{fg=muted,bg=canvas}
+        \setbeamercolor{author}{fg=ink,bg=canvas}
+        \setbeamercolor{institute}{fg=muted,bg=canvas}
+        \setbeamercolor{structure}{fg=accent}
+        \setbeamercolor{itemize item}{fg=accent}
+        \setbeamercolor{alerted text}{fg=accent}
+        \setbeamercolor{progress bar}{fg=accent,bg=border}
+        \setbeamercolor{title separator}{fg=accent,bg=border}
+        \setbeamercolor{page number in head/foot}{fg=muted,bg=canvas}
+        \hypersetup{colorlinks=true,linkcolor=accent,urlcolor=accent,citecolor=accent}
+        \setbeamertemplate{frame numbering}[fraction]
+        \setbeamertemplate{navigation symbols}{}
+        \setbeamersize{text margin left=8mm,text margin right=8mm}
+        \setbeamerfont{frametitle}{size=\large}
+        \newcommand{\source}[1]{\par\vfill{\fontsize{7}{8}\selectfont\color{muted}#1\par}}
+---
+
+## Two ways to gather visual information
+
+```{=latex}
+\begin{center}
+\begin{tikzpicture}[x=1cm,y=1cm]
+\node[text=conv,font=\bfseries] at (2,3.5) {Convolution};
+\node[text=attn,font=\bfseries] at (10,3.5) {Attention};
+\foreach \offset in {0,8} {
+  \foreach \x in {0,...,4} {\foreach \y in {0,...,3} {
+    \draw[border,fill=surface] (\offset+\x*.7,\y*.7) rectangle +(0.6,0.6);
+  }}
+}
+\foreach \x in {1,...,3} {\foreach \y in {0,...,2} {
+  \draw[conv,fill=conv!20!canvas] (\x*.7,\y*.7) rectangle +(0.6,0.6);
+}}
+\fill[conv] (1.4,.7) rectangle +(0.6,0.6);
+\foreach \x/\y in {0/3,1/0,4/2,4/0} {
+ \draw[attn,fill=attn!20!canvas] (8+\x*.7,\y*.7) rectangle +(0.6,0.6);
+ \draw[attn,line width=.8pt] (9.7,1) -- (8+\x*.7+.3,\y*.7+.3);
+}
+\fill[attn] (9.4,.7) rectangle +(.6,.6);
+\node[align=center,text width=5.2cm] at (1.7,-.65) {Reuse a local pattern detector\\across the image};
+\node[align=center,text width=5.2cm] at (9.7,-.65) {Choose relevant locations\\using this image's features};
+\end{tikzpicture}
+\end{center}
+```
+
+**The question:** Can local structure help with limited data while attention preserves room to scale?
+
+\source{Schematic feature maps, not measured attention. Dai et al. (2021), §§1–2.1. Full attention can use every location.}
+
+::: notes
+Timing: 1 minute, after a 30-second title introduction. On the title, introduce Dai, Liu, Le, and Tan's NeurIPS 2021 paper, whose full title is CoAtNet: Marrying Convolution and Attention for All Data Sizes. Open with the research problem: “The paper starts from a tradeoff: convolution provides useful structure when data are limited, while attention can benefit from much larger datasets. Can we preserve both strengths?” Present this as the paper's 2021 motivation, not a universal ranking of all architectures.
+
+Here each square represents a location in a feature map, not necessarily a raw pixel. Start with a concrete example: a short edge pattern is useful wherever it appears. A convolution reuses the same learned filter at each location. Attention can relate a feature to other relevant features elsewhere in the image. Imagine connecting the appearance of a wheel to the rest of a vehicle; this is intuition, not a visualization of a trained CoAtNet. Point to the solid square as the location being updated. Only a few attention connections are drawn for clarity; CoAtNet's attention is global. Convolutions can also gain a large receptive field through depth, so avoid saying that a CNN can never use global context.
+:::
+
+## Why they are natural complements
+
+```{=latex}
+\begin{center}
+\begin{tikzpicture}
+\node[text=conv,font=\bfseries,anchor=west] at (0,2.6) {A reusable rule};
+\node[anchor=north west,align=left,text width=5.8cm] at (0,2.1)
+ {The same learned weights\\at every location and for every image.};
+\node[text=conv,anchor=west] at (0,.6) {Less to learn from each example};
+\node[text=attn,font=\bfseries,anchor=west] at (7.1,2.6) {An adaptable rule};
+\node[anchor=north west,align=left,text width=5.8cm] at (7.1,2.1)
+ {Weights change with the input\\and can connect distant features.};
+\node[text=attn,anchor=west] at (7.1,.6) {More flexibility for complex relationships};
+\draw[border] (6.5,0.2) -- (6.5,2.9);
+\node[align=center,font=\large] at (6.5,-.7) {Both mix features. They choose the weights differently.};
+\end{tikzpicture}
+\end{center}
+```
+
+**CoAtNet's idea:** Keep the spatial prior and the adaptable weighting.
+
+\source{Conceptual comparison of depthwise convolution and self-attention. Dai et al. (2021), Eqs. 1–3 and Table 1.}
+
+::: notes
+Timing: 55 seconds. Explain a spatial prior as a useful assumption before seeing the data: similar local patterns should be processed similarly wherever they occur. The convolution weights are learned during training, then shared across inputs at inference. They are not hand-coded or permanently frozen during learning. Attention has learned projection parameters too, but its mixing weights are calculated anew for each input. This flexibility can help fit a large dataset, while also creating more opportunities to overfit. The paper's point is an empirical tradeoff, not a universal claim that all attention models need more data. Both operations compute weighted sums. Convolution weights can be negative and need not sum to one; attention after softmax uses nonnegative weights summing to one. The common weighted-sum form motivates adding relative-position information to attention, not asserting the two operations are identical.
+:::
+
+## A range of designs between the endpoints
+
+```{=latex}
+\begin{center}
+\begin{tikzpicture}[x=1cm,y=1cm]
+\shade[left color=conv,right color=attn] (0,1.875) rectangle (11.2,1.925);
+\node[anchor=west,text=conv,font=\bfseries] at (0,2.5) {Convolution-only mixing};
+\node[anchor=east,text=attn,font=\bfseries] at (11.2,2.5) {Attention-only mixing};
+\foreach \n in {0,...,4} {
+ \foreach \j in {1,...,4} {
+  \pgfmathtruncatemacro{\isT}{\j>4-\n}
+  \ifnum\isT=1\def\col{attn}\def\letter{T}\else\def\col{conv}\def\letter{C}\fi
+  \node[draw=\col,fill=\col!14!canvas,minimum width=.45cm,minimum height=.6cm,text=\col,font=\footnotesize] at (\n*2.35+\j*.48-.35,.85) {\letter};
+ }
+}
+\node[align=center,text=muted] at (5.6,-.05) {Illustrative layouts: more attention stages toward the right};
+\draw[border] (0,-.6)--(11.2,-.6);
+\node[align=center,text width=12.5cm] at (5.6,-1.2) {Designers can change \textbf{where} operations appear,\\\textbf{how far} they reach, and \textbf{how} their weights depend on the input.};
+\end{tikzpicture}
+\end{center}
+```
+
+This is a **design space** with many possible hybrids.
+
+\source{Conceptual map based on Dai et al. (2021), §§2–3. C = convolution, T = attention; stems omitted. No numerical mixing scale.}
+
+::: notes
+Timing: 55 seconds. Introduce the range as a helpful mental map. At the endpoints, spatial mixing is convolution-only or attention-only; the boxes are schematic stages, not complete model specifications. Even a ViT uses an initial patch projection that can be implemented as convolution, so “pure” is shorthand about its main spatial-mixing blocks. Between the endpoints, designers can add attention to a convolutional backbone, put convolution in a Transformer, alternate operations, or use attention with local windows or relative-position information. These are several independent design decisions, not a single scalar that fully describes the architecture. The paper's related-work section makes clear that hybrids already existed. The C-C-C-C through T-T-T-T progression illustrates possibilities; CoAtNet's controlled multi-stage study did not include a T-T-T-T model with no early convolution. Its separate ViT-relative comparator also changes the stem. Avoid equating the schematic with its experimental search space. Transition: CoAtNet makes two particular choices within this larger landscape.
+:::
+
+## CoAtNet makes two complementary choices
+
+```{=latex}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{.48\textwidth}
+\textbf{Inside an attention block}
+
+\vspace{.5em}
+\textcolor{attn}{Content score} $+$ \textcolor{conv}{position bias}
+
+\vspace{.5em}
+Learn how much each signal matters when mixing features.
+
+\vspace{.5em}
+\textcolor{muted}{Relative attention gives a spatial prior to adaptable weights.}
+\end{column}
+\begin{column}{.48\textwidth}
+\textbf{Across the network}
+
+\vspace{.5em}
+\begin{tikzpicture}
+\foreach \x/\col/\letter in {0/conv/C,1.15/conv/C,2.3/attn/T,3.45/attn/T} {
+ \node[draw=\col,fill=\col!14!canvas,minimum width=.85cm,minimum height=.65cm,text=\col] at (\x,0) {\letter};
+}
+\end{tikzpicture}
+
+Choose where convolution gives way to attention.
+
+\vspace{.5em}
+\textcolor{muted}{Controlled comparisons guide the stage layout.}
+\end{column}
+\end{columns}
+\vspace{1em}
+\textbf{The contribution:} a principled combination, tested across data scales.
+```
+
+\source{Dai et al. (2021), §§2–4. Earlier work already used hybrids and relative attention; CoAtNet studies their combination.}
+
+::: notes
+Timing: 55 seconds. This slide locates the paper's contribution precisely. Within a block, it connects the weighted-sum view of depthwise convolution and attention, then uses a learned relative-position bias in the attention score. The relative magnitudes of content and position can vary continuously during learning and across inputs. There is no explicit global knob that turns the whole model smoothly from a CNN into a Transformer. If the content term became negligible, the result would be position-based normalized mixing, not necessarily ordinary local depthwise convolution. Across the network, the authors compare discrete choices of stage layout and select C-C-T-T for the model family summarized in Table 3. They scale depth and width, including the convolution stage, rather than merely attaching attention to a fixed CNN. Neither relative attention nor hybrid networks were invented here; the contribution is their formulation, systematic layout evidence, and demonstrated scaling. Transition to the worked example: first see what combining the two signals means for one attention decision, then return to the whole network.
+:::
+
+## One example: content plus relative position
+
+```{=latex}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{.32\textwidth}
+\begin{tikzpicture}[x=1cm,y=1cm]
+\foreach \x in {0,...,4} {\foreach \y in {0,...,2} {
+ \draw[border,fill=surface] (\x*.65,\y*.65) rectangle +(.55,.55);
+}}
+\foreach \x/\y/\letter in {0/1/A,1/2/B,4/1/C} {
+ \draw[conv,fill=conv!15!canvas] (\x*.65,\y*.65) rectangle +(.55,.55);
+ \node[text=conv] at (\x*.65+.275,\y*.65+.275) {\letter};
+}
+\draw[ink,fill=ink!20!canvas] (.65,.65) rectangle +(.55,.55);
+\node at (.925,.925) {$i$};
+\node[align=center,text width=3.8cm] at (1.55,-.65) {$i$: location being updated};
+\node[align=center,text width=3.8cm,text=muted,font=\footnotesize] at (1.55,-1.5) {A is left, B is above,\\C is farther right.};
+\end{tikzpicture}
+\end{column}
+\begin{column}{.65\textwidth}
+\begin{tikzpicture}[x=1cm,y=1cm]
+\node[anchor=west] at (0,2.5) {Candidate};
+\node at (3.8,2.5) {A}; \node at (5.4,2.5) {B}; \node at (7,2.5) {C};
+\draw[border] (0,2.12)--(7.7,2.12);
+\node[anchor=west,text=attn] at (0,1.65) {Content match};
+\node[text=attn] at (3.8,1.65) {2}; \node[text=attn] at (5.4,1.65) {1}; \node[text=attn] at (7,1.65) {0};
+\node[anchor=west,text=conv] at (0,.85) {Offset bias};
+\node[text=conv] at (3.8,.85) {$-1$}; \node[text=conv] at (5.4,.85) {$+1$}; \node[text=conv] at (7,.85) {0};
+\draw[border] (0,.45)--(7.7,.45);
+\node[anchor=west] at (0,0) {Add the scores};
+\node at (3.8,0) {1}; \node at (5.4,0) {2}; \node at (7,0) {0};
+\node[anchor=west,text=good] at (0,-.85) {Softmax share};
+\node[text=good,font=\bfseries] at (3.8,-.85) {24\%};
+\node[text=good,font=\bfseries] at (5.4,-.85) {67\%};
+\node[text=good,font=\bfseries] at (7,-.85) {9\%};
+\end{tikzpicture}
+\end{column}
+\end{columns}
+\vspace{.7em}
+```
+
+The bias is **learned for each relative offset**. These scores are invented.
+
+Content favors A; adding position makes **B receive the largest share**.
+
+\source{Illustrative feature map and scores, not paper measurements. Softmax([1, 2, 0]) rounded; based on Dai et al. (2021), Eq. 3.}
+
+::: notes
+Timing: 1 minute 45 seconds. Walk down the rows, not across the whole table at once. Start at i in the spatial sketch: it is the feature being updated. A is one position to the left, B is one position above, and C is three positions to the right. These are feature-map locations, not class labels. The blue bias row assigns an invented learned preference to each of those relative offsets. There is no built-in rule that “above” must get +1: training could learn different values. A and B are equally close here, which makes clear that offset includes direction rather than distance alone. Content alone favors A. The learned bias depends on the offset from the location being updated. In this invented example, it favors B's offset enough to change the ranking. It is not necessarily a preference for the nearest location: relative position may encode direction and displacement, and the learned bias can favor or penalize either. Add the two scores. Softmax turns them into positive shares that sum to one, giving larger scores more weight. For the curious, exp(1), exp(2), and exp(0) are about 2.72, 7.39, and 1.00; dividing each by their total gives about 24%, 67%, and 9%. These are feature-mixing weights, not class probabilities or model confidence. The spatial preference is shared across pairs with the same relative offset; it is not a distinct arbitrary number for every absolute location.
+:::
+
+## The equation follows the same recipe
+
+```{=latex}
+\[
+\underbrace{A_{ij}}_{\text{mixing share}}
+=\operatorname{softmax}_{j}\!\left(
+\underbrace{\color{attn}q_i^{\top}k_j}_{\text{content match}}
++\underbrace{\color{conv}b_{i-j}}_{\text{offset preference}}
+\right)
+\]
+\vspace{0.5em}
+\[
+\underbrace{y_i}_{\text{updated feature}}
+=\sum_j\underbrace{A_{ij}}_{\text{share}}\,
+\underbrace{v_j}_{\text{feature to borrow}}
+\]
+\vspace{0.5em}
+\begin{center}
+\textcolor{good}{Our example:}\quad $y_i\approx0.24v_A+0.67v_B+0.09v_C$
+\end{center}
+```
+
+Score the candidates, turn scores into shares, then mix their features.
+
+\source{Adapted from Dai et al. (2021), Eq. 3. One attention head shown; scaling and projection details simplified.}
+
+::: notes
+Timing: 1 minute 25 seconds. Now connect notation to the example the audience already understands. i is the location we are updating, and j runs over locations it can borrow from. Query q and key k are learned views of the features used to calculate a match; value v is the information being mixed. Their dot product gives the content score, and b adds the offset preference. Softmax normalizes across j for this i. The second equation just assembles the weighted mixture. The output remains a feature vector, not the final class prediction. The schematic omits the usual scaling and the multiple learned projection heads used in practice. The authors' mathematical connection is a convolution-like shared relative-position term inside attention; it is not literally an ordinary depthwise convolution added to a finished attention output. Exact whole-network translation equivariance is not guaranteed through downsampling and image boundaries.
+:::
+
+## Local processing before global mixing
+
+```{=latex}
+\begin{center}
+\begin{tikzpicture}[x=1cm,y=1cm]
+\foreach \x/\w/\h/\col/\stage/\kind/\res in {
+0/1.8/2.4/conv/S0/Stem/2,
+2.8/1.6/2/conv/S1/Conv/4,
+5.5/1.4/1.6/conv/S2/Conv/8,
+8.2/1.2/1.2/attn/S3/Attention/16,
+10.9/1/0.8/attn/S4/Attention/32} {
+ \draw[\col,line width=1pt,fill=\col!13!canvas] (\x,0) rectangle +(\w,\h);
+ \node[font=\bfseries,text=\col] at (\x+\w/2,\h+.35) {\stage};
+ \node at (\x+\w/2,-.4) {\kind};
+ \node[text=muted,font=\footnotesize] at (\x+\w/2,-.9) {$H/\res\times W/\res$};
+}
+\foreach \a/\b in {1.9/2.7,4.5/5.4,7/8.1,9.5/10.8} {\draw[flow] (\a,.6) -- (\b,.6);}
+\node[anchor=west,text=conv] at (0,-1.65) {Learn local patterns at high resolution};
+\node[anchor=east,text=attn] at (12,-1.65) {Connect fewer, richer features};
+\end{tikzpicture}
+\end{center}
+```
+
+Fewer locations make global attention cheaper. **C-C-T-T** names S1–S4.
+
+\source{Schematic stage sizes. Dai et al. (2021), §2.2 and Table 3. Conv stages use MBConv; attention includes relative bias.}
+
+::: notes
+Timing: 1 minute 10 seconds. The paper combines the ideas at two levels. We just saw the relative-position term within attention; this slide shows where convolution and attention belong in the network. The stem and MBConv stages process local patterns while gradually reducing spatial resolution. The attention stages then connect features globally on smaller maps. The boxes symbolize shrinking spatial maps, not parameter counts or exact areas. Channels increase as maps shrink, and each stage contains multiple blocks. With N spatial locations, global attention forms N-by-N pairwise scores. Halving both spatial dimensions reduces N by four, making that pairwise part roughly sixteen times smaller; this is an explanation of the attention matrix cost, not a claim that the whole network runs sixteen times faster. MBConv means an inverted bottleneck with depthwise convolution. Explain only if asked.
+:::
+
+## What the layout experiments revealed
+
+```{=latex}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{.38\textwidth}
+\begin{tikzpicture}[x=1cm,y=1cm]
+\foreach \row/\pattern in {0/CCCC,1/CCCT,2/CCTT,3/CTTT} {
+ \foreach \j in {1,...,4} {
+  \pgfmathtruncatemacro{\isT}{\j>4-\row}
+  \ifnum\isT=1\def\col{attn}\def\letter{T}\else\def\col{conv}\def\letter{C}\fi
+  \node[draw=\col,fill=\col!14!canvas,minimum width=.72cm,minimum height=.55cm,text=\col] at (\j*.86,-\row*.85) {\letter};
+ }
+}
+\draw[good,line width=1pt] (.4,-2.08) rectangle (3.9,-1.33);
+\node[font=\footnotesize,text=muted,align=center] at (2.15,-3.35) {Plus a ViT-style stem\\with relative attention};
+\end{tikzpicture}
+\end{column}
+\begin{column}{.58\textwidth}
+\textcolor{conv}{\textbf{ImageNet-1K: about 1.28M images}}\\
+Generalization: performance on unseen images.\\
+More convolution generally helped.
+
+\vspace{.8em}
+\textcolor{attn}{\textbf{JFT: over 300M images here}}\\
+Capacity: ability to fit a large dataset.\\
+Two or three attention stages fit best.
+
+\vspace{.8em}
+\textcolor{good}{\textbf{C-C-T-T offered a useful balance.}}
+\end{column}
+\end{columns}
+```
+
+\source{Dai et al. (2021), §2.2 and Figure 1. Similar model sizes and compute; no augmentation or regularization in this study.}
+
+::: notes
+Timing: 1 minute 20 seconds. Introduce the evaluation vocabulary before reporting results: “ImageNet-1K is our image-classification benchmark, with about 1.28 million training images. JFT supplies much larger pretraining data. Transfer means adapting a model trained on one dataset to another. Top-1 accuracy asks whether its first-choice label is correct.” Then explain the controlled study before its answer. The authors compared five layouts at similar parameter counts and computation. The left-hand diagram shows four progressively more attention-heavy stage layouts, plus the ViT-style stem comparator named below. C denotes MBConv and T denotes relative-attention Transformer blocks. They trained on ImageNet-1K for 300 epochs and on JFT, over 300 million images in this study, for three epochs, without augmentation or regularization. They assess generalization by evaluation accuracy at comparable training loss; do not literally subtract loss from accuracy. Capacity means the ability to fit the large dataset under the tested budget. More convolution helped generalization, while two or three attention stages gave stronger large-data fitting. C-C-T-T and C-T-T-T were similar on JFT. Transfer accuracy then helped select C-C-T-T, shown next. This is the story behind choosing where to switch from convolution to attention, not merely a leaderboard search.
+:::
+
+## Two checks support the combination
+
+```{=latex}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{.48\textwidth}
+\textbf{Keep an extra convolution stage}
+\begin{tikzpicture}[x=4.1cm,y=1cm]
+ \draw[border] (0,0) -- (1,0);
+ \foreach \x/\t in {0/81.5,.5/82.0,1/82.5} {
+  \draw[muted] (\x,.04)--(\x,-.04);
+  \node[below,font=\footnotesize,text=muted] at (\x,-.06) {\t};
+ }
+ \draw[muted,line width=1pt] (.28,.8)--(.89,.8);
+ \fill[muted] (.28,.8) circle (2pt);
+ \fill[good] (.89,.8) circle (2.5pt);
+ \node[above,font=\footnotesize] at (.28,.85) {81.78};
+ \node[above,text=good,font=\footnotesize] at (.89,.85) {82.39};
+ \node[below,font=\footnotesize] at (.28,.68) {C-T-T-T};
+ \node[below,text=good,font=\footnotesize] at (.89,.68) {C-C-T-T};
+\end{tikzpicture}
+
+\textcolor{good}{+0.61 percentage points}\\
+JFT transfer, $224\times224$
+\end{column}
+\begin{column}{.48\textwidth}
+\textbf{Keep the relative-position bias}
+\begin{tikzpicture}[x=4.1cm,y=1cm]
+ \draw[border] (0,0) -- (1,0);
+ \foreach \x/\t in {0/85.0,.5/85.5,1/86.0} {
+  \draw[muted] (\x,.04)--(\x,-.04);
+  \node[below,font=\footnotesize,text=muted] at (\x,-.06) {\t};
+ }
+ \draw[muted,line width=1pt] (.3,.8)--(.7,.8);
+ \fill[muted] (.3,.8) circle (2pt);
+ \fill[good] (.7,.8) circle (2.5pt);
+ \node[above,font=\footnotesize] at (.3,.85) {85.3};
+ \node[above,text=good,font=\footnotesize] at (.7,.85) {85.7};
+ \node[below,font=\footnotesize] at (.3,.68) {Without};
+ \node[below,text=good,font=\footnotesize] at (.7,.68) {With};
+\end{tikzpicture}
+
+\textcolor{good}{+0.4 percentage points}\\
+ImageNet-1K only, $384\times384$
+\end{column}
+\end{columns}
+\vspace{1em}
+\begin{center}Top-1 accuracy: first-choice label correct (\%)\\Zoomed axes; separate experiments\end{center}
+```
+
+\source{Redrawn from Dai et al. (2021), Tables 2 and 6. No repeated-seed uncertainty is provided in these tables.}
+
+::: notes
+Timing: 1 minute 5 seconds. These checks connect mechanisms to evidence. Left: C-C-T-T and C-T-T-T have almost equal JFT pretraining precision, 34.40 and 34.36, but transfer favors the layout retaining more convolution. Right: removing the learned relative-position term lowers ImageNet accuracy. That supports the role of spatial structure in the attention weights we explained earlier. Both charts show exact reported values and use zoomed axes explicitly labeled to reveal small differences; these are not large absolute gains. They are different experiments, so do not add the improvements. No repeated-seed intervals accompany these tables, so avoid calling the differences statistically established. The generalization and capacity story is supported by several complementary experiments rather than proved by a single score.
+:::
+
+## The hybrid also scales beyond the ablations
+
+```{=latex}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{.46\textwidth}
+\textcolor{conv}{\textbf{ImageNet-1K only}}
+
+{\fontsize{30}{34}\selectfont 86.0\%}\par
+CoAtNet-3 matches NFNet-F5.
+
+\vspace{.6em}
+168M vs. 377M parameters\\
+203B vs. 290B FLOPs
+\end{column}
+\begin{column}{.49\textwidth}
+\textcolor{attn}{\textbf{With larger pretraining datasets}}
+
+{\fontsize{30}{34}\selectfont 88.56\%}\par
+CoAtNet-4 roughly matches ViT-H/14's 88.55\%.
+
+\vspace{.6em}
+12.7M vs. 300M pretraining images
+\end{column}
+\end{columns}
+\vspace{1em}
+\textbf{The promise:} useful spatial structure without giving up scaling potential.
+```
+
+\source{Dai et al. (2021), Tables 4–5. ImageNet top-1. Models, resolutions, datasets, and recipes differ across comparisons.}
+
+::: notes
+Timing: 1 minute. Explain what each comparison buys rather than reciting the table. Define parameters as the model's learned numbers, and FLOPs as a count of arithmetic work for an inference. Fewer FLOPs do not automatically mean proportionally lower runtime. With ImageNet-1K alone, the hybrid matches a strong convolution-only system at lower listed parameter count and FLOPs. Evaluation sizes differ, 512 squared versus 544 squared. With more pretraining data, the hybrid reaches approximately the same accuracy as ViT-H/14 using far fewer images, but image count does not isolate data efficiency because label quality, distributions, model size, and recipes differ. The 88.56% run uses pretraining RandAugment and 150 epochs. These are system comparisons, not controlled architecture ablations. If asked about the largest model, CoAtNet-7 reaches 90.88% with JFT-3B and 2.44 billion parameters; ViT-G/14 reaches 90.45%. Keep that resource regime attached to the headline. Do not imply these are current state-of-the-art comparisons: they are the paper's 2021 results.
+:::
+
+## How small is “small data”?
+
+```{=latex}
+\begin{center}
+\begin{tikzpicture}[x=1cm,y=1cm]
+\draw[border,line width=1pt] (0,0)--(12.2,0);
+\draw[warm,dashed,line width=1.2pt] (0,0)--(5.75,0);
+\foreach \x in {5.75,7.59,10.13,11.98} {\fill[good] (\x,0) circle (2.5pt);}
+\foreach \x/\label in {0/1{,}000,5.75/1.28M,7.59/12.7M,10.13/300M,11.98/3B} {
+ \draw[muted] (\x,-.1)--(\x,.1);
+ \node[below,font=\footnotesize] at (\x,-.2) {\label};
+}
+\node[text=warm,align=center] at (2.6,1.05) {Hundreds or thousands?\\Not evaluated};
+\node[text=good,align=center] at (8.75,1.05) {Evaluated datasets\\ImageNet and JFT};
+\node[text=muted,font=\footnotesize] at (6,-.9) {Training images, logarithmic scale; 1,000 is an illustrative small-data setting};
+\end{tikzpicture}
+\end{center}
+```
+
+**Evidence boundary:** Strong results at large scale leave very small datasets untested.
+
+**Open question:** Does that balance still help with only 1,000 examples?
+
+\source{Critical reading of Dai et al. (2021), §§4–5. Evaluated dataset sizes are shown; this is not a measured learning curve.}
+
+::: notes
+Timing: 30 seconds. Read the chart as an evidence boundary: ImageNet-1K still has about 1.28 million training images, so “small” in this paper is relative to web-scale pretraining. The green points mark evaluated dataset sizes, not accuracies or a measured learning curve. Performance with hundreds or thousands of examples remains open. Present this as our critique, not a reported failure. Transition to the closing: “That limits how broadly we can apply the claim, but it does not take away the design lesson from the experiments.”
+:::
+
+## CoAtNet's answer
+
+```{=latex}
+\begin{center}
+\begin{tikzpicture}[x=1cm,y=1cm]
+\node[text=conv,font=\large,align=center,text width=5.4cm] at (2.3,2.4) {Build local features\\with convolution};
+\node[text=attn,font=\large,align=center,text width=5.4cm] at (9.1,2.4) {Connect them globally\\with attention};
+\draw[flow] (5.05,2.4)--(6.35,2.4);
+\shade[left color=conv,right color=attn] (-.2,1.45) rectangle (11.6,1.50);
+\node[align=center,text width=12cm] at (5.7,.65) {Relative position keeps a spatial prior in the attention weights.};
+\end{tikzpicture}
+
+\vspace{.6em}
+{\large The experiments support this balance\\across the image-classification regimes tested.}
+
+\vspace{1em}
+\textcolor{muted}{Thank you.}\quad\textbf{Questions?}
+\end{center}
+```
+
+\source{Dai et al. (2021), CoAtNet: Marrying Convolution and Attention for All Data Sizes. NeurIPS 34, 3965–3977.}
+
+::: notes
+Timing: 30 seconds. Close with: “CoAtNet's answer is to retain local processing early, use global attention later, and give attention a learned sense of relative position. The experiments show that these strengths can work together across the data scales tested.” Pause before saying “Thank you. What questions do you have?” Let this slide remain visible during discussion. Do not introduce a new experiment or caveat here; the preceding slide has already established the limit of the evidence.
+
+The 13-slide plan totals 13 minutes including the title, with up to two minutes available for discussion in a 15-minute slot. This is an estimate, not a measured rehearsal. The README retains a selective ten-minute option. Use the notes as preparation rather than a verbatim script.
+
+Optional discussion, up to two minutes if the talk runs to the planned 13 minutes: What should be held fixed in a 1,000-example comparison? Would a better pretrained hybrid demonstrate an architectural advantage, or better pretraining? Why might a spatial prior help natural images but need adjustment for spectrograms, where time and frequency have different meanings?
+
+Question preparation: CoAtNet was not the first convolution-attention hybrid. Its contribution combines a relative-attention formulation, a systematic layout study, and scaling evidence. The paper only tests image classification and explicitly leaves detection and segmentation for later. Our lean-branch audio project uses 721 training clips and finds that partial AST fine-tuning slightly reduces mean fault-class recall, but it does not compare CoAtNet against AST. That connection belongs in the separate write-up, not as evidence for the paper's claims.
+
+Full source: Dai, Z., Liu, H., Le, Q. V., & Tan, M. (2021). CoAtNet: Marrying convolution and attention for all data sizes. In Advances in Neural Information Processing Systems, 34, 3965-3977. Source PDF: references/coatnet-2021.pdf. All diagrams are editable schematics created for this presentation. The scores on the toy-example slide are illustrative; only the labeled experimental results come from the paper.
+:::
