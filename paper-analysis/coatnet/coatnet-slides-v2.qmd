@@ -1,0 +1,482 @@
+---
+title: "CoAtNet"
+subtitle: "Inductive bias, flexible attention, and the evidence"
+author: "Paper analysis · Jake Van Slyke"
+date: ""
+institute: "Dai, Liu, Le, and Tan · NeurIPS 2021"
+format:
+  beamer:
+    pdf-engine: xelatex
+    aspectratio: 169
+    theme: metropolis
+    fontsize: 11pt
+    slide-level: 2
+    navigation: empty
+    colorlinks: true
+    include-in-header:
+      text: |
+        \usepackage{tikz}
+        \usetikzlibrary{arrows.meta,positioning,calc}
+        \definecolor{conv}{HTML}{78A9FF}
+        \definecolor{attn}{HTML}{BE95FF}
+        \definecolor{good}{HTML}{25BE6A}
+        \definecolor{warm}{HTML}{08BDBA}
+        \tikzset{every node/.style={font=\sffamily\small,text=ink}, flow/.style={-{Stealth[length=2mm]},draw=muted,line width=0.8pt}}
+        \definecolor{canvas}{HTML}{161616}
+        \definecolor{surface}{HTML}{252525}
+        \definecolor{ink}{HTML}{F2F4F8}
+        \definecolor{muted}{HTML}{B6B8BB}
+        \definecolor{accent}{HTML}{78A9FF}
+        \definecolor{border}{HTML}{535353}
+        \setbeamercolor{normal text}{fg=ink,bg=canvas}
+        \setbeamercolor{background canvas}{bg=canvas}
+        \setbeamercolor{palette primary}{fg=ink,bg=surface}
+        \setbeamercolor{frametitle}{fg=ink,bg=surface}
+        \setbeamercolor{title}{fg=ink,bg=canvas}
+        \setbeamercolor{subtitle}{fg=muted,bg=canvas}
+        \setbeamercolor{author}{fg=ink,bg=canvas}
+        \setbeamercolor{institute}{fg=muted,bg=canvas}
+        \setbeamercolor{structure}{fg=accent}
+        \setbeamercolor{itemize item}{fg=accent}
+        \setbeamercolor{alerted text}{fg=accent}
+        \setbeamercolor{progress bar}{fg=accent,bg=border}
+        \setbeamercolor{title separator}{fg=accent,bg=border}
+        \setbeamercolor{page number in head/foot}{fg=muted,bg=canvas}
+        \hypersetup{colorlinks=true,linkcolor=accent,urlcolor=accent,citecolor=accent}
+        \setbeamertemplate{frame numbering}[fraction]
+        \setbeamertemplate{navigation symbols}{}
+        \setbeamersize{text margin left=8mm,text margin right=8mm}
+        \setbeamerfont{frametitle}{size=\large}
+---
+
+## Inductive bias in visual learning
+
+```{=latex}
+\begin{center}
+\begin{tikzpicture}[x=1cm,y=1cm]
+\node[text=conv,font=\bfseries] at (2,3.5) {Convolution};
+\node[text=attn,font=\bfseries] at (10,3.5) {Attention};
+\foreach \offset in {0,8} {
+  \foreach \x in {0,...,4} {\foreach \y in {0,...,3} {
+    \draw[border,fill=surface] (\offset+\x*.7,\y*.7) rectangle +(0.6,0.6);
+  }}
+}
+\foreach \x in {1,...,3} {\foreach \y in {0,...,2} {
+  \draw[conv,fill=conv!20!canvas] (\x*.7,\y*.7) rectangle +(0.6,0.6);
+}}
+\fill[conv] (1.4,.7) rectangle +(0.6,0.6);
+\foreach \x/\y in {0/3,1/0,4/2,4/0} {
+ \draw[attn,fill=attn!20!canvas] (8+\x*.7,\y*.7) rectangle +(0.6,0.6);
+ \draw[attn,line width=.8pt] (9.7,1) -- (8+\x*.7+.3,\y*.7+.3);
+}
+\fill[attn] (9.4,.7) rectangle +(.6,.6);
+\node[align=center,text width=5.2cm] at (1.7,-.65) {Reuse a local filter\\across the image};
+\node[align=center,text width=5.2cm] at (9.7,-.65) {Choose connections\\from the input};
+\end{tikzpicture}
+\end{center}
+```
+
+```{=latex}
+Convolution builds in local structure;\\
+attention leaves more spatial relationships to be learned.
+```
+
+::: notes
+Source and context: Dai et al. (2021), §§1–2.1 and Table 1. The schematic feature maps are reused from the original deck, not measured attention. Full attention can use every location.
+
+Timing: 1:00. Title introduction: 0:20. Introduce the NeurIPS 2021 paper by Dai, Liu, Le, and Tan, then ask: how can useful assumptions and flexible learning work together?
+
+Start with the visual: each square is a feature-map location and the solid square is the location being updated. The blue neighborhood illustrates a shared local filter. The purple connections illustrate input-dependent mixing across the map; only a few links are drawn for clarity, while CoAtNet uses global attention. Convolution can also build a large receptive field through depth. Then define inductive bias: an assumption built into a learning system that favors some solutions over others. Here bias means a learning preference, not social bias. Convolution builds in locality and weight sharing. Its filters are learned, not hand-coded; sharing them is the architectural assumption. This helps reuse a pattern at different locations. Attention computes input-dependent mixing weights using learned projections and can connect distant features. Attention also has inductive biases; avoid saying it has none. The paper argues for a particular balance in its 2021 experiments, not a universal law about every CNN or Transformer.
+
+The paper's hypothesis is that spatial structure helps generalization while attention's flexibility helps fit large datasets. Generalization means doing well on unseen examples. Capacity here means the ability to fit a large training dataset under the tested training budget, not parameter count. Explain these terms in plain language now so the later evidence is easy to follow. Use the bottom caption to connect the visual to the next slide: convolution builds in locality and shared filtering, while global attention leaves more spatial relationships to be learned from data. This does not mean attention is free of inductive bias. Transition: if local patterns matter especially early, convolution is a sensible starting point, with attention connecting the resulting features later.
+:::
+
+## Why convolution before attention?
+
+**The prior:** local patterns matter early.
+
+```{=latex}
+\vspace{.7em}
+\begin{center}
+\begin{tikzpicture}[x=1cm,y=1cm]
+\node[text=conv,font=\bfseries] at (1.6,1.7) {Convolution};
+\node[text=muted,font=\bfseries] at (6.1,1.7) {Downsampling};
+\node[text=attn,font=\bfseries] at (10.6,1.7) {Attention};
+\node[align=center,text width=3.3cm,font=\large] at (1.6,.65) {Local\\features};
+\node[align=center,text width=3.3cm,font=\large] at (6.1,.65) {Fewer\\locations};
+\node[align=center,text width=3.3cm,font=\large] at (10.6,.65) {Global\\relationships};
+\draw[flow] (3.35,.65)--(4.3,.65);
+\draw[flow] (7.85,.65)--(8.8,.65);
+\end{tikzpicture}
+\end{center}
+\vspace{.8em}
+\textbf{Smaller feature maps make global attention cheaper.}
+```
+
+::: notes
+Source and context: Dai et al. (2021), §2.2. Global attention has quadratic cost in the number of spatial locations.
+
+Timing: 0:55. Follow the visual from local features through fewer locations to global relationships. The three labels describe a processing rationale, not three literal network stages: downsampling happens throughout the multistage network. Separate the two reasons for the order. First is the inductive-bias argument: local patterns are expected to be more common in early processing, so convolution is a sensible starting point. Second is cost: global attention compares every pair of spatial locations. Reducing the feature-map size makes that operation practical. Convolution is not the only way to downsample; the paper also tests a ViT-style stem.
+
+The authors explicitly constrain the multistage layouts to put convolution before Transformer stages. This is a choice guided by their prior, not a conclusion from testing all permutations. The early MBConv stage is fixed because the spatial size is too large for their global attention. Avoid claiming that attention-first networks are impossible, or that early convolutions cannot eventually gather global context. Transition: here is exactly what that restricted experiment compares.
+:::
+
+## What the authors actually compared
+
+```{=latex}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{.43\textwidth}
+\textbf{Four stage layouts}
+
+\vspace{.7em}
+\begin{tikzpicture}[x=1cm,y=1cm]
+\foreach \row in {0,...,3} {
+ \foreach \j in {1,...,4} {
+  \pgfmathtruncatemacro{\isT}{\j>4-\row}
+  \ifnum\isT=1\def\col{attn}\def\letter{T}\else\def\col{conv}\def\letter{C}\fi
+  \node[draw=\col,fill=\col!14!canvas,minimum width=.82cm,minimum height=.58cm,text=\col] at (\j*1.05,-\row*.79) {\letter};
+ }
+}
+\draw[good,line width=.8pt] (.53,-1.98) rectangle (4.72,-1.18);
+\node[anchor=west,text=good,font=\footnotesize] at (4.85,-1.58) {Selected};
+\end{tikzpicture}
+
+{\small C = convolution\\T = relative attention}
+\end{column}
+\begin{column}{.53\textwidth}
+\textbf{Plus a ViT-style comparator}
+
+\vspace{.7em}
+\begin{tikzpicture}[x=1cm,y=1cm]
+\node[draw=muted,fill=surface,minimum width=1.25cm,minimum height=.85cm,align=center,font=\footnotesize] at (.65,0) {Patch\\stem};
+\draw[flow] (1.4,0)--(1.9,0);
+\node[draw=attn,fill=attn!14!canvas,minimum width=3.2cm,minimum height=.85cm,text=attn,align=center,font=\footnotesize] at (3.6,0) {Relative-attention\\stack};
+\end{tikzpicture}
+
+\vspace{.9em}
+\textcolor{warm}{\textbf{Outside this search}}\\
+Alternating stages\\
+Attention $\rightarrow$ convolution
+\end{column}
+\end{columns}
+\vspace{1em}
+Similar model sizes and compute; ImageNet-1K and JFT.
+```
+
+::: notes
+Source and context: Dai et al. (2021), §2.2, Figure 1 and Table 2. Layout study: no augmentation or regularization; not an exhaustive architecture search.
+
+Timing: 1:05. Walk through the four rows as progressively earlier switches to attention. C-C-C-C never switches. C-C-C-T switches only at the last stage. C-C-T-T switches halfway through the four named stages. C-T-T-T retains one MBConv stage after the common convolutional stem. Each letter on the left represents a stage containing multiple blocks; the common convolutional stem is omitted. The single stack box on the right represents the ViT-style comparator's relative-attention blocks, not one layer or a specified number of stages. The green outline identifies C-C-T-T as the selected multistage layout. All T operations shown use relative attention.
+
+The fifth comparator uses a ViT-style patch stem and relative-attention blocks. It is important to include it: the authors did compare an attention-dominated model, but did not test a multistage attention-then-convolution ordering. Alternation and reversed orders are outside the reported study, so their absence is not evidence that they are worse. The provided paper lacks the appendices it references; limit the statement to the reported layout study in §2.2.
+
+The five variants have comparable parameter counts and compute. They are trained on ImageNet-1K for 300 epochs and JFT for three epochs without augmentation or regularization. ImageNet-1K has about 1.28 million training images; this JFT experiment uses over 300 million. This experiment isolates layout more directly than the later cross-model benchmarks. Brief spoken evidence: “C-C-T-T also transferred better than C-T-T-T: 82.39% versus 81.78% ImageNet accuracy after JFT pretraining.” This is a 0.61-percentage-point gain at 224×224 evaluation, with nearly identical JFT precision (34.40 versus 34.36). Transfer means adapting the pretrained model to ImageNet; top-1 accuracy means the first-choice class is correct. Transition: they selected C-C-T-T because it retained strong large-data fitting while transferring better. Here is how that layout becomes the full network.
+:::
+
+## Selected layout: C-C-T-T
+
+```{=latex}
+\begin{center}
+\begin{tikzpicture}[x=1cm,y=1cm]
+\foreach \x/\w/\h/\col/\stage/\kind/\res in {
+0/1.8/2.4/conv/S0/{}/2,
+2.8/1.6/2/conv/S1/Conv/4,
+5.5/1.4/1.6/conv/S2/Conv/8,
+8.2/1.2/1.2/attn/S3/Attention/16,
+10.9/1/0.8/attn/S4/Attention/32} {
+ \draw[\col,line width=1pt,fill=\col!13!canvas] (\x,0) rectangle +(\w,\h);
+ \node[font=\bfseries,text=\col] at (\x+\w/2,\h+.35) {\stage};
+ \node at (\x+\w/2,-.4) {\kind};
+ \node[text=muted,font=\footnotesize] at (\x+\w/2,-.9) {$H/\res\times W/\res$};
+}
+\node[text=conv,font=\bfseries] at (.9,1.2) {Stem};
+\node[text=muted,font=\footnotesize] at (7.4,2.75) {Lower spatial resolution $\longrightarrow$};
+\foreach \x/\y/\letter/\col in {3.6/1/C/conv,6.2/.8/C/conv,8.8/.6/T/attn,11.4/.4/T/attn} {
+ \node[text=\col,font=\large\bfseries] at (\x,\y) {\letter};
+}
+\foreach \a/\b in {1.9/2.7,4.5/5.4,7/8.1,9.5/10.8} {\draw[flow] (\a,.6) -- (\b,.6);}
+\node[anchor=west,text=conv] at (0,-1.65) {Learn local patterns};
+\node[anchor=east,text=attn] at (12,-1.65) {Connect patterns globally};
+\end{tikzpicture}
+\end{center}
+```
+
+```{=latex}
+\textbf{Inside attention:} content match + relative-position bias.
+```
+
+
+::: notes
+Source and context: C-C-T-T names S1–S4; convolution stages use MBConv. Schematic sizes. Dai et al. (2021), §§2.1–2.2 and Tables 3 and 6.
+
+Timing: 0:55. Read the diagram from left to right: stem, two MBConv stages, then two relative-attention stages. The C, C, T, T labels inside S1 through S4 connect directly to the selected row on the preceding slide; S0 is the common stem. The boxes represent shrinking spatial maps, not parameter counts. Channels increase as spatial size decreases, and each stage contains multiple blocks.
+
+This brings the two design choices together: early convolution supplies local processing, while late attention retains a spatial prior through its learned relative-position bias. Explain the compact caption: attention combines a content match with a learned preference for relative displacement. That preference is shared across pairs with the same offset and can depend on direction as well as distance; it need not always favor nearby features. Smaller feature maps reduce the cost of comparing all pairs of locations. With N locations, the attention matrix has N squared entries; halving both image dimensions cuts that matrix cost by about sixteen, not the runtime of the whole network. Brief spoken evidence: “Keeping the relative-position bias also helped: 85.7% accuracy versus 85.3% without it.” This is a separate ImageNet-only experiment at 384×384, a gain of 0.4 percentage points. Do not add this gain to the layout comparison on slide 4; neither comparison reports repeated-seed uncertainty. Transition: with the architecture in place, how does CoAtNet compare as models get larger?
+:::
+
+## Accuracy versus model size
+
+```{=latex}
+{\small ImageNet-21K pretraining; final accuracy on ImageNet.}
+\begin{center}
+\begin{tikzpicture}[x=.035cm,y=.65cm]
+\node[anchor=west,font=\footnotesize] at (0,89.85) {ImageNet top-1 accuracy (\%, zoomed) $\uparrow$};
+\foreach \y in {83,85,87,89} {
+ \draw[border] (0,\y)--(340,\y);
+ \node[anchor=east,font=\footnotesize,text=muted] at (-4,\y) {\y};
+}
+\draw[muted] (0,83)--(0,89.35);
+\foreach \x in {0,100,200,300} {
+ \draw[muted] (\x,83)--(\x,82.87);
+ \node[below,font=\footnotesize,text=muted] at (\x,82.84) {\x};
+}
+\node[font=\footnotesize] at (170,81.65) {Model size (millions of parameters)};
+% Family series recovered from the vector paths of the paper's Figure 3.
+% These points follow Figure 3, not the earlier matched-resolution Table 4 selection.
+\draw[warm,dashed,line width=1pt] (24,85.0)--(55,86.1)--(121,86.8);
+\foreach \x/\y in {24/85.0,55/86.1,121/86.8} {
+ \node[rectangle,fill=warm,inner sep=1.7pt] at (\x,\y) {};
+}
+\draw[attn,dash dot,line width=1pt] (87,84.6)--(304,85.3);
+\foreach \x/\y in {87/84.6,304/85.3} {
+ \fill[attn] (\x,\y) circle (2pt);
+}
+\draw[ink,densely dashed,line width=1pt] (88,86.0)--(197,86.4);
+\foreach \x/\y in {88/86.0,197/86.4} {
+ \node[rectangle,rotate=45,fill=ink,inner sep=1.8pt] at (\x,\y) {};
+}
+\draw[conv,dashed,line width=1pt] (20,83.3)--(32,84.9)--(277,87.7);
+\foreach \x/\y in {20/83.3,32/84.9,277/87.7} {
+ \draw[conv,line width=1pt] (\x,\y) +(-2.2,-.10)--+(2.2,.10);
+ \draw[conv,line width=1pt] (\x,\y) +(-2.2,.10)--+(2.2,-.10);
+}
+\draw[good,line width=1.5pt] (75,87.3)--(167,87.9)--(275,88.56);
+\foreach \x/\y in {75/87.3,167/87.9,275/88.56} {\fill[good] (\x,\y) circle (2.8pt);}
+\node[above,font=\footnotesize,text=good] at (275,88.66) {CoAtNet};
+\node[right,font=\footnotesize,text=conv] at (282,87.7) {CvT};
+\node[above,font=\footnotesize,text=warm] at (121,86.74) {EfficientNetV2};
+\node[right,font=\footnotesize,text=ink] at (202,86.4) {Swin};
+\node[above,font=\footnotesize,text=attn] at (304,85.4) {ViT};
+\end{tikzpicture}
+\end{center}
+```
+
+::: notes
+Source and context: Figure 1 in this deck adapts Figure 3 of Dai et al. (2021), on page 7 of the supplied paper. It reproduces the five model-family curves with multiple points: CoAtNet, EfficientNetV2, Swin, CvT and ViT. The paper's single HaloNet point and its horizontal ViT-H/14 JFT-pretraining reference are omitted to focus on family curves under ImageNet-21K pretraining. This is a figure-based redraw, not the earlier matched-resolution selection from Table 4.
+
+Timing: 0:45. Read the axes first: higher is better ImageNet accuracy, farther right means more parameters. Each line joins reported sizes within one family; colors and endpoint labels identify the families directly. The solid green curve highlights CoAtNet. Dashed lines and different markers distinguish the comparators. These are connections between reported results, not fitted scaling laws or predictions between points. At overlapping model sizes, the reported CoAtNet curve compares favorably with the other families. Do not extrapolate beyond a family's reported range.
+
+All curves in the source figure use ImageNet-21K pretraining and final ImageNet evaluation, but training recipes and evaluation resolutions differ. The former 384-only subtitle no longer applies. This is a comparison of reported systems, not a controlled architecture ablation. Parameter count measures model size, not the paper's empirical capacity concept. The zoomed accuracy axis spans 83–89%, preserving the full range of these curves.
+
+Provenance: the plotted coordinates were recovered from vector line paths in the supplied PDF's Figure 3, using its linear axis ticks, then rounded to the nearest million parameters and to the shown accuracy precision. They are figure-derived approximations, not newly measured or independently tabulated results. Approximate (parameters in millions, accuracy percent) pairs: EfficientNetV2 [(24, 85.0), (55, 86.1), (121, 86.8)]; ViT [(87, 84.6), (304, 85.3)]; Swin [(88, 86.0), (197, 86.4)]; CvT [(20, 83.3), (32, 84.9), (277, 87.7)]; CoAtNet [(75, 87.3), (167, 87.9), (275, 88.56)]. The source figure places the middle CoAtNet point near 167M; Table 4 lists CoAtNet-3 as 168M. Preserve the figure's placement rather than silently merging the two sources. Table 4 independently supports the three CoAtNet accuracies in the 512-resolution rows, with its strongest pretraining recipe at the endpoint. Exact numerical annotations are not added to the figure-derived family points on the slide.
+
+For reproducibility, export PDF page 7 with `pdftocairo -f 7 -l 7 -svg references/coatnet-2021.pdf page7.svg`. Figure 3's family paths share transform `matrix(0.26399, 0, 0, -0.26399, 0.431, 152.188)`. In path coordinates, x=93.304671 and x=654.982551 mark 0M and 300M; y=59.485681 and y=552.712816 mark 83% and 89%. Mapping those coordinates linearly recovers the listed points within 0.01M and 0.001 percentage points before rounding. The source colors identify EfficientNetV2 (green), ViT (magenta), Swin (cyan), CvT (blue), and CoAtNet (red); the slide recolors them to fit the deck.
+
+These are 2021 results, not current rankings. Transition: next, change the horizontal axis from model size to data size. Slide 7 keeps separate points because both the model and the dataset change there.
+:::
+
+## Accuracy across data scales
+
+```{=latex}
+\definecolor{nfnet}{HTML}{FF7EB6}
+\begin{center}
+\begin{tikzpicture}[x=1.05cm,y=.56cm]
+\node[anchor=west,font=\footnotesize] at (0,92.05) {ImageNet top-1 accuracy (\%, zoomed) $\uparrow$};
+\foreach \y in {84,86,88,90} {
+ \draw[border] (0,\y)--(11.45,\y);
+ \node[anchor=east,font=\footnotesize,text=muted] at (-.12,\y) {\y};
+}
+\draw[muted] (0,83.5)--(0,91.6);
+\draw[muted] (0,83.5)--(11.45,83.5);
+\foreach \x/\label in {.32163/1.28M,3.31141/12.7M,7.43136/300M,10.43136/3B} {
+ \draw[muted] (\x,83.5)--(\x,83.34);
+ \node[below,font=\footnotesize,text=muted] at (\x,83.3) {\label};
+}
+\node[font=\footnotesize] at (5.6,82.3) {Training / pretraining images (logarithmic scale)};
+% CoAtNet and NFNet-F5 share exactly the same first coordinate: 1.28M, 86.0%.
+% A pink ring around the green point preserves both observations without jitter.
+\draw[nfnet,line width=.8pt] (.32163,86) circle (2.4pt);
+\fill[nfnet] (7.43136,89.2) circle (2.4pt);
+\node[rectangle,fill=warm,inner sep=1.3pt] at (.32163,85.7) {};
+\node[rectangle,fill=warm,inner sep=1.8pt] at (3.31141,86.8) {};
+\foreach \x/\y in {.32163/84.2,3.31141/86.0} {
+ \node[rectangle,rotate=45,fill=ink,inner sep=1.8pt] at (\x,\y) {};
+}
+\foreach \x/\y in {3.31141/85.3,7.43136/87.76,7.43136/88.55,10.43136/90.45} {
+ \fill[attn] (\x,\y) circle (2.4pt);
+}
+\fill[good] (.32163,86) circle (1.6pt);
+\foreach \x/\y in {3.31141/88.56,7.43136/89.77,10.43136/90.88} {
+ \fill[good] (\x,\y) circle (2.7pt);
+}
+% Short leaders separate near-tied results while leaving all data coordinates exact.
+\draw[good,line width=.6pt] (.40,86.10)--(.57,86.55);
+\draw[warm,line width=.6pt] (.40,85.64)--(.57,85.4);
+\node[anchor=west,font=\footnotesize,text=good] at (.6,86.6) {CoAtNet-3};
+\node[anchor=west,font=\footnotesize,text=nfnet,fill=canvas] at (.6,86.0) {NFNet-F5};
+\node[anchor=west,font=\footnotesize,text=warm] at (.6,85.4) {EfficientNetV2-L};
+\node[anchor=west,font=\footnotesize,text=ink,fill=canvas] at (.6,84.2) {Swin-B};
+\node[anchor=south,font=\footnotesize,text=good] at (3.31141,88.72) {CoAtNet-4};
+\draw[warm,line width=.6pt] (3.39,86.82)--(3.55,87.0);
+\node[anchor=west,font=\footnotesize,text=warm] at (3.58,87.0) {EfficientNetV2-L};
+\node[anchor=west,font=\footnotesize,text=ink,fill=canvas] at (3.58,86.0) {Swin-B};
+\node[anchor=west,font=\footnotesize,text=attn,fill=canvas] at (3.58,85.3) {ViT-L/16};
+\node[anchor=south,font=\footnotesize,text=good] at (7.43136,89.95) {CoAtNet-5};
+\node[anchor=west,font=\footnotesize,text=nfnet] at (7.7,89.2) {NFNet-F4+};
+\node[anchor=west,font=\footnotesize,text=attn,fill=canvas] at (7.7,88.55) {ViT-H/14};
+\node[anchor=west,font=\footnotesize,text=attn,fill=canvas] at (7.7,87.76) {ViT-L/16};
+\node[anchor=south,font=\footnotesize,text=good] at (10.43136,91.05) {CoAtNet-7};
+\node[anchor=north,font=\footnotesize,text=attn,fill=canvas] at (10.43136,90.25) {ViT-G/14};
+\end{tikzpicture}
+\end{center}
+```
+
+::: notes
+Source and context: Figure 2 in this deck is redrawn from Dai et al. (2021), Tables 4–5. Fourteen selected reported results from five model families. The paper credits comparison results to prior work (§4); it does not describe retraining every external model under one shared protocol. This benchmark comparison is separate from the controlled five-layout experiment on ImageNet-1K and JFT in §2.2. Only the supplied thirteen-page paper was reviewed; its referenced appendices are absent.
+
+Timing: 0:45. Keep the same vertical metric as the previous chart: final ImageNet top-1 accuracy. The horizontal axis now counts training or pretraining images, spaced logarithmically. Read the four regimes from left to right: ImageNet-1K (1.28M), ImageNet-21K (12.7M), JFT-300M, and JFT-3B. For ImageNet-1K this is target-dataset training alone; for the other regimes it is larger-dataset pretraining followed by adaptation to ImageNet-1K. The count is the size of that training/pretraining dataset, not a sum of all image exposures or all datasets.
+
+Green marks CoAtNet, teal EfficientNetV2, light gray Swin, purple ViT, and pink NFNet; full variant labels identify each point without a separate legend. The CoAtNet-3 and NFNet-F5 results at 1.28M are both 86.0%, so the point has a green center and a pink ring. Both label leaders refer to that exact coordinate; no data points are jittered. The short leaders only displace text, not observations. The remaining points are separated by accuracy and labeled directly.
+
+Optional detail for questions; reserve the main interpretation for the next slide: CoAtNet-3 matches NFNet-F5 at 86.0% without external pretraining; CoAtNet-4 at 12.7M reaches 88.56%, close to ViT-H/14's 88.55% at 300M; at 3B, CoAtNet-7 reaches 90.88% versus ViT-G/14's 90.45%. These are reported system comparisons, not evidence that data quantity alone or architecture alone caused the differences. Model sizes, pretraining data content and labels, recipes, compute, and evaluation resolutions vary. The data-size axis does not imply equivalent datasets. Points are deliberately unconnected because this is not a fixed-model learning curve, and missing points are not inferred. The model names make changes of variant explicit; the parameter counts below remain in the notes to avoid crowding the chart.
+
+Exact plotted rows (images; model; parameters; evaluation size; top-1 accuracy):
+
+- 1.28M; CoAtNet-3; 168M; 512×512; 86.0% (Table 4, 1K only).
+- 1.28M; EfficientNetV2-L; 121M; 480×480; 85.7% (Table 4, 1K only).
+- 1.28M; Swin-B; 88M; 384×384; 84.2% (Table 4, 1K only).
+- 1.28M; NFNet-F5; 377M; 544×544; 86.0% (Table 4, 1K only).
+- 12.7M; CoAtNet-4 + PT-RA-E150; 275M; 512×512; 88.56% (Table 4, 21K+1K).
+- 12.7M; EfficientNetV2-L; 121M; 480×480; 86.8% (Table 4, 21K+1K).
+- 12.7M; Swin-B; 88M; 384×384; 86.0% (Table 4, 21K+1K).
+- 12.7M; ViT-L/16; 304M; 384×384; 85.3% (Table 4, 21K+1K).
+- 300M; CoAtNet-5; 688M; 512×512; 89.77% (Table 5).
+- 300M; ViT-L/16; 307M; 512×512; 87.76% (Table 5).
+- 300M; ViT-H/14; 632M; 518×518; 88.55% (Table 5).
+- 300M; NFNet-F4+; 527M; 512×512; 89.2% (Table 5).
+- 3B; CoAtNet-7; 2.44B; 512×512; 90.88% (Table 5).
+- 3B; ViT-G/14; 1.84B; 518×518; 90.45% (Table 5).
+
+Selection: retain the four existing CoAtNet points; add the paired EfficientNetV2-L and Swin-B results, ViT-L/16 across 21K and JFT-300M, the paper's ViT-H/14 and ViT-G/14 comparisons at larger scales, and NFNet-F5/F4+ as strong convolutional comparators. This is a selected benchmark comparison, not a complete leaderboard or a claim that every family has results in every regime. The CoAtNet-4 point uses RandAugment during pretraining and 150 pretraining epochs; its short on-slide label omits those flags. The largest CoAtNet result required 20.1K TPUv3-core-days. These are 2021 results, not current rankings. Transition: what do the model-size and data-scale charts tell us together?
+:::
+
+## What the results show
+
+```{=latex}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{.24\textwidth}
+\textcolor{conv}{\textbf{Model size}}
+\end{column}
+\begin{column}{.73\textwidth}
+{\large Strong accuracy at\\comparable model sizes.}
+\end{column}
+\end{columns}
+\vspace{1.3em}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{.24\textwidth}
+\textcolor{attn}{\textbf{Data scale}}
+\end{column}
+\begin{column}{.73\textwidth}
+{\large Competitive across the reported\\1.28M--3B image regimes.}
+\end{column}
+\end{columns}
+\vspace{1.5em}
+\textcolor{good}{\textbf{The hybrid design performs well across these settings.}}
+
+\vspace{.8em}
+{\small Comparisons of reported systems: model variants, data,\\
+training recipes, and evaluation sizes differ.}
+```
+
+::: notes
+Source and context: Interpretation of the preceding two charts, based on Dai et al. (2021), Figure 3 and Tables 4–5. These are historical benchmark comparisons, distinct from the controlled design-choice experiments discussed in the notes for slides 4 and 5.
+
+Timing: 0:50. Bring the two axes together. First, the ImageNet-21K chart shows strong accuracy at comparable parameter counts within the plotted ranges. Model size here means parameter count, not measured runtime, training cost, or an isolated measure of capacity. Second, CoAtNet is competitive across the reported training-data regimes, from 1.28 million to 3 billion images. The smallest of these is still a large dataset in everyday terms.
+
+Use one or two concrete comparisons if useful: CoAtNet-3 and NFNet-F5 both reach 86.0% without external pretraining. CoAtNet-4 reaches 88.56% with ImageNet-21K pretraining (12.7M images), close to ViT-H/14's 88.55% after JFT-300M pretraining. At 3B images, CoAtNet-7 reaches 90.88% compared with ViT-G/14's 90.45%. The middle example suggests an appealing accuracy/data tradeoff in these reported systems, but is not a controlled estimate of data efficiency.
+
+Interpretation: the hybrid design performs well in the tested image-classification settings. These charts do not isolate the causal effect of architecture or training-data quantity. Model sizes and variants, dataset content, training recipes, compute, and evaluation resolutions vary; external baselines were not all retrained under one shared protocol. Do not claim universal superiority or statistical significance. The separate stage-layout and position-bias checks are the more direct evidence about those design choices, and their numerical findings remain in slides 4–5's notes.
+
+Transition: these results are promising, but two gaps remain: alternative stage orders and truly small datasets.
+:::
+
+## What remains untested?
+
+```{=latex}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{.47\textwidth}
+\textcolor{warm}{\textbf{Other stage orders}}
+
+\vspace{.7em}
+\begin{tikzpicture}[x=1cm,y=1cm]
+\node[anchor=west,font=\footnotesize] at (0,1.95) {Alternating};
+\node[anchor=west,font=\footnotesize] at (0,.65) {Attention first};
+\foreach \x/\y/\letter/\col in {
+.45/1.4/C/conv,1.65/1.4/T/attn,2.85/1.4/C/conv,4.05/1.4/T/attn,
+.45/.1/T/attn,1.65/.1/T/attn,2.85/.1/C/conv,4.05/.1/C/conv} {
+ \node[draw=\col,fill=\col!14!canvas,minimum width=.85cm,minimum height=.60cm,text=\col] at (\x,\y) {\letter};
+}
+\end{tikzpicture}
+
+\vspace{.7em}
+{\small Not tested in the reported layout study.}
+\end{column}
+\begin{column}{.47\textwidth}
+\textcolor{warm}{\textbf{Smaller datasets}}
+
+\vspace{.7em}
+{\small Smallest dataset tested}\\[.4em]
+{\LARGE\textbf{1.28 million}}\\[.2em]
+images
+
+\vspace{1em}
+Hundreds or thousands\\
+of examples?
+\end{column}
+\end{columns}
+\vspace{1.2em}
+\textbf{Next test:} compare stage orders on small datasets\\
+under matched conditions.
+```
+
+
+::: notes
+Source and context: Evidence boundaries from Dai et al. (2021), §§2.2 and 4. The next test is a proposed follow-up, not a reported experiment.
+
+Timing: 0:55. Bring back the early caveat now that the audience understands the results. The blue C and purple T boxes reuse the stage notation from slides 4 and 5. C-T-C-T and T-T-C-C are illustrative untested multistage orders, not models measured in the paper; the common stem is omitted. The authors' local-first prior narrows the architecture search, so the evidence does not establish that alternating or reversed layouts are inferior. C-C-T-T is supported within the chosen search space. The ViT-style stem comparator was included; do not imply that all attention-dominated designs were excluded. State the limit as applying to the reported layout experiment.
+
+The second boundary is data size. ImageNet-1K is small relative to hundreds of millions or billions, but is not small in the everyday sense of a few hundred or thousand examples. Lack of a test is not a reported failure. A follow-up could compare stage orders with similar parameter counts, compute, pretraining, augmentation, training budget, and multiple seeds on small training subsets. Matching pretraining is essential: otherwise a small fine-tuning set still benefits from a large earlier dataset. Do not introduce audio-project results as evidence for this paper.
+
+Transition: these limits narrow the claim while leaving a clear design lesson.
+:::
+
+## CoAtNet's answer
+
+```{=latex}
+\begin{center}
+\begin{tikzpicture}[x=1cm,y=1cm]
+\node[text=conv,font=\large,align=center,text width=5.4cm] at (2.3,2.4) {Build local features\\with convolution};
+\node[text=attn,font=\large,align=center,text width=5.4cm] at (9.1,2.4) {Connect them globally\\with attention};
+\draw[flow] (5.05,2.4)--(6.35,2.4);
+\shade[left color=conv,right color=attn] (-.2,1.45) rectangle (11.6,1.50);
+\node[align=center,text width=12cm] at (5.7,.65) {Relative-position bias keeps spatial structure inside attention.};
+\end{tikzpicture}
+
+\vspace{.6em}
+{\large The experiments support this balance\\across the image-classification regimes tested.}
+
+\vspace{1em}
+\textcolor{muted}{Thank you.}\quad\textbf{Questions?}
+\end{center}
+```
+
+
+::: notes
+Source and context: Dai et al. (2021), CoAtNet: Marrying Convolution and Attention for All Data Sizes. NeurIPS 34, 3965–3977.
+
+Timing: 0:40. Close by answering the opening question: CoAtNet uses useful spatial assumptions early, flexible relationships later, and learned relative position within attention. Its experiments support that combination across the image-classification settings tested. The lesson is that inductive bias can guide both the model and the experiment; the tested search space sets the boundary of the conclusion. Pause, thank the audience, and invite questions.
+
+The ten-slide presentation totals 8:10 including the 0:20 title introduction. End here for questions; the supporting design-choice comparisons remain in the notes for slides 4 and 5. This is a pacing estimate, not a measured rehearsal. Keep optional details in these hidden notes out of the main delivery. The original thirteen-slide deck is retained separately as a reference.
+
+Full source: Dai, Z., Liu, H., Le, Q. V., & Tan, M. (2021). CoAtNet: Marrying convolution and attention for all data sizes. Advances in Neural Information Processing Systems, 34, 3965–3977. Local paper: references/coatnet-2021.pdf. Only the supplied thirteen-page paper was reviewed; its referenced appendices are not included. The diagrams are editable schematics. Quantitative results are transcribed from the cited tables. Figures 1 and 2 in this deck are new redraws, not the paper's original figure numbering.
+:::
